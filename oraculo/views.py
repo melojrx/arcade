@@ -12,6 +12,12 @@ from langchain_community.vectorstores import FAISS
 from pathlib import Path
 from langchain_openai import ChatOpenAI
 from django.http import StreamingHttpResponse
+from .wrapper_evolutionapi import SendMessage
+import json
+from django.core.cache import cache
+from django.http import HttpResponse
+from .utils import sched_message_response
+
 
 def treinar_ia(request):
     if not has_permission(request.user, 'treinar_ia'):
@@ -117,3 +123,48 @@ def ver_fontes(request, id):
     print(pergunta.pergunta)
 
     return render(request, 'ver_fontes.html', {'pergunta': pergunta})
+
+@csrf_exempt
+def webhook_whatsapp(request):
+    try:
+        # Parsear dados JSON
+        data = json.loads(request.body)
+        
+        # Extrair dados com verificação de existência
+        data_payload = data.get('data', {})
+        key_data = data_payload.get('key', {})
+        message_data = data_payload.get('message', {})
+        
+        # Extrair telefone
+        remote_jid = key_data.get('remoteJid', '')
+        if '@' not in remote_jid:
+            return HttpResponse("Invalid phone format", status=400)
+        
+        phone = remote_jid.split('@')[0]
+        
+        # Extrair mensagem (pode estar em diferentes estruturas)
+        message = None
+        if 'extendedTextMessage' in message_data:
+            message = message_data.get('extendedTextMessage', {}).get('text')
+        elif 'conversation' in message_data:
+            message = message_data.get('conversation')
+        elif 'textMessage' in message_data:
+            message = message_data.get('textMessage', {}).get('text')
+        
+        if not message:
+            return HttpResponse("No message text found", status=400)
+        
+        # Processar mensagem
+        buffer = cache.get(f"wa_buffer_{phone}", [])
+        buffer.append(message)
+        
+        cache.set(f"wa_buffer_{phone}", buffer, timeout=120)
+        
+        sched_message_response(phone)
+        return HttpResponse("OK")
+        
+    except json.JSONDecodeError:
+        return HttpResponse("Invalid JSON", status=400)
+    except Exception as e:
+        print(f"Erro no webhook: {str(e)}")
+        return HttpResponse(f"Error: {str(e)}", status=500)

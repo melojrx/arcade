@@ -14,7 +14,7 @@ def cadastro(request):
         senha = request.POST.get('senha')
         confirmar_senha = request.POST.get('confirmar_senha')
 
-        if not senha == confirmar_senha:
+        if senha != confirmar_senha:
             messages.add_message(request, constants.ERROR, 'Senha e confirmar senha devem ser iguais.')
             return redirect('/usuarios/cadastro/')
         

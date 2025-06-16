@@ -16,23 +16,23 @@ def cadastro(request):
 
         if senha != confirmar_senha:
             messages.add_message(request, constants.ERROR, 'Senha e confirmar senha devem ser iguais.')
-            return redirect('/usuarios/cadastro/')
+            return redirect('cadastro')
         
         if len(senha) < 6:
             messages.add_message(request, constants.ERROR, 'A senha deve ter 6 ou mais caracteres.')
-            return redirect('/usuarios/cadastro/')
+            return redirect('cadastro')
 
         users = User.objects.filter(username=username)
         if users.exists():
             messages.add_message(request, constants.ERROR, 'Já existe um usuário com esse username.')
-            return redirect('/usuarios/cadastro/')
+            return redirect('cadastro')
 
         User.objects.create_user(
             username=username,
             password=senha
         )
 
-        return redirect('/usuarios/login')
+        return redirect('login')
 
 def login(request):
     if request.method == 'GET':
@@ -60,7 +60,7 @@ def permissoes(request):
 
 from rolepermissions.roles import assign_role
 
-def tornar_gerente(request, id):
+def tornar_gerente(id):
     #if not request.user.is_superuser:
     #    raise Http404()
     user = User.objects.get(id=id)
